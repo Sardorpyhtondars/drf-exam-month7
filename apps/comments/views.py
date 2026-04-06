@@ -1,19 +1,12 @@
-from rest_framework.generics import (
-    ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView,
-    GenericAPIView,
-    ListAPIView,
-)
+from rest_framework import status
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView,GenericAPIView, ListAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
 from apps.permissions import IsAuthorOrReadOnly
 from apps.comments.models import Comment, Like
-from apps.comments.serializers import (
-    CommentCreateSerializer,
-    CommentListSerializer,
-    CommentUpdateSerializer,
-    LikeSerializer,
-)
+from apps.comments.serializers import CommentCreateSerializer,CommentListSerializer,CommentUpdateSerializer,LikeSerializer
+from apps.posts.models import Post
 
 
 class CommentListCreateAPIView(ListCreateAPIView):
@@ -27,8 +20,28 @@ class CommentListCreateAPIView(ListCreateAPIView):
     - get_queryset: filter by post query param, only top-level (parent=None), only approved
     - filterset_fields: ['post']
     """
-    pass
+    filterset_fields = ['post']
 
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return CommentCreateSerializer
+        return CommentListSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return Post.objects.filter(status='published')
+        return Post.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+# get queryset???
 
 class CommentDetailAPIView(RetrieveUpdateDestroyAPIView):
     """
@@ -39,7 +52,13 @@ class CommentDetailAPIView(RetrieveUpdateDestroyAPIView):
     - serializer: CommentUpdateSerializer for PUT/PATCH, CommentListSerializer for GET
     - permission_classes: IsAuthenticated, IsAuthorOrReadOnly
     """
-    pass
+    queryset = Comment.objects.all()
+    permission_classes = [IsAuthenticated, IsAuthorOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return CommentUpdateSerializer
+        return CommentListSerializer
 
 
 class LikeToggleAPIView(GenericAPIView):
@@ -52,7 +71,21 @@ class LikeToggleAPIView(GenericAPIView):
     - permission_classes: [IsAuthenticated]
     - Accepts: {"post": <post_id>}
     """
-    pass
+    serializer_class = LikeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        post_id = request.data.get('post')
+        existing_like = Like.objects.filter(post=post_id, user=request.user).first()
+
+        if existing_like:
+            existing_like.delete()
+            return Response({'status': 'unliked'}, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user)
+        return Response({'status': 'liked'}, status=status.HTTP_201_CREATED)
 
 
 class PostLikesListAPIView(ListAPIView):
@@ -63,5 +96,7 @@ class PostLikesListAPIView(ListAPIView):
     - permission_classes: [AllowAny]
     - filterset_fields: ['post']
     """
-    pass
-
+    queryset = Like.objects.all()
+    serializer_class = LikeSerializer
+    permission_classes = [AllowAny]
+    filterset_fields = ['post']

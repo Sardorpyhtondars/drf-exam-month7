@@ -31,7 +31,17 @@ class Tag(models.Model):
     __str__ returns: self.name
     Meta: ordering = ['name']
     """
-    pass
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['name']
 
 
 class Post(models.Model):
@@ -53,16 +63,12 @@ class Post(models.Model):
     - published_at: DateTimeField, blank=True, null=True
     - created_at: DateTimeField, auto_now_add=True
     - updated_at: DateTimeField, auto_now=True
-
+    """
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('published', 'Published'),
         ('archived', 'Archived'),
     ]
-
-    __str__ returns: self.title
-    Meta: ordering = ['-created_at']
-    """
 
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -82,3 +88,20 @@ class Post(models.Model):
         related_name='posts',
     )
 
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
+    content = models.TextField()
+    excerpt = models.TextField(blank=True, null=True)
+    cover_image = models.ImageField(upload_to='posts/covers/', blank=True, null=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='draft')
+    is_featured = models.BooleanField(default=False)
+    views_count = models.PositiveIntegerField(default=0)
+    published_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        ordering = ['-created_at']

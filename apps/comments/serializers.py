@@ -11,7 +11,14 @@ class CommentCreateSerializer(serializers.ModelSerializer):
     - author is automatically set from request.user
     - Validate that parent comment belongs to the same post (if provided)
     """
-    pass
+    class Meta:
+        model = Comment
+        fields = ['post', 'parent', 'content']
+
+    def validate(self, data):
+        if data.get('parent') and data['parent'].post != data['post']:
+            raise serializers.ValidationError("Parent comment does not belong to this post.")
+        return data
 
 
 class CommentListSerializer(serializers.ModelSerializer):
@@ -23,7 +30,21 @@ class CommentListSerializer(serializers.ModelSerializer):
     - replies = serializers.SerializerMethodField()
     - get_replies: return child comments (where parent=self)
     """
-    pass
+    author = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'post', 'author', 'parent', 'content', 'is_approved', 'replies', 'created_at']
+    def get_author(self, obj):
+        return {
+            'id': obj.author.id,
+            'username': obj.author.username,
+        }
+
+    def get_replies(self, obj):
+        child_comments = obj.replies.all()
+        return CommentListSerializer(child_comments, many=True).data
 
 
 class CommentUpdateSerializer(serializers.ModelSerializer):
@@ -32,7 +53,9 @@ class CommentUpdateSerializer(serializers.ModelSerializer):
     Model: Comment
     Fields: content
     """
-    pass
+    class Meta:
+        model = Comment
+        fields = ['content']
 
 
 class LikeSerializer(serializers.ModelSerializer):
@@ -44,5 +67,7 @@ class LikeSerializer(serializers.ModelSerializer):
     - user is automatically set from request.user
     - Validate that user hasn't already liked the post
     """
-    pass
-
+    class Meta:
+        model = Like
+        fields = ['id', 'post', 'user', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']

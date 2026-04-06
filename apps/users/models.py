@@ -13,5 +13,10 @@ class CustomUser(AbstractUser):
 
     __str__ returns: self.username
     """
-    pass
+    bio = models.TextField(blank=True, null=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return self.username
 

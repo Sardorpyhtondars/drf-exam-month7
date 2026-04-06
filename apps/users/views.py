@@ -1,14 +1,9 @@
+from rest_framework import status
 from rest_framework.generics import CreateAPIView, GenericAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
-from apps.users.serializers import (
-    RegisterSerializer,
-    LoginSerializer,
-    LogoutSerializer,
-    ProfileSerializer,
-    PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer,
-)
+from apps.users.serializers import RegisterSerializer,LoginSerializer,LogoutSerializer,ProfileSerializer,PasswordResetRequestSerializer,PasswordResetConfirmSerializer
 
 
 class RegisterAPIView(CreateAPIView):
@@ -16,7 +11,8 @@ class RegisterAPIView(CreateAPIView):
     - permission_classes = [AllowAny]
     - serializer_class = RegisterSerializer
     """
-    pass
+    permission_classes = [AllowAny]
+    serializer_class = RegisterSerializer
 
 
 class LoginAPIView(GenericAPIView):
@@ -25,7 +21,13 @@ class LoginAPIView(GenericAPIView):
     - serializer_class = LoginSerializer
     - post() must return access + refresh tokens
     """
-    pass
+    permission_classes = [AllowAny]
+    serializer_class = LoginSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
 class LogoutAPIView(GenericAPIView):
@@ -33,7 +35,14 @@ class LogoutAPIView(GenericAPIView):
     - permission_classes = [IsAuthenticated]
     - serializer_class = LogoutSerializer
     """
-    pass
+    permission_classes = [IsAuthenticated]
+    serializer_class = LogoutSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Successfully logged out."}, status=status.HTTP_204_NO_CONTENT)
 
 
 class ProfileAPIView(RetrieveUpdateAPIView):
@@ -42,7 +51,11 @@ class ProfileAPIView(RetrieveUpdateAPIView):
     - serializer_class = ProfileSerializer
     - get_object() returns request.user
     """
-    pass
+    permission_classes = [IsAuthenticated]
+    serializer_class = ProfileSerializer
+
+    def get_object(self):
+        return self.request.user
 
 
 class PasswordResetRequestAPIView(GenericAPIView):
@@ -50,7 +63,14 @@ class PasswordResetRequestAPIView(GenericAPIView):
     - permission_classes = [AllowAny]
     - serializer_class = PasswordResetRequestSerializer
     """
-    pass
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetRequestSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Password reset email sent."}, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmAPIView(GenericAPIView):
@@ -58,5 +78,11 @@ class PasswordResetConfirmAPIView(GenericAPIView):
     - permission_classes = [AllowAny]
     - serializer_class = PasswordResetConfirmSerializer
     """
-    pass
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetConfirmSerializer
 
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Password has been reset."}, status=status.HTTP_200_OK)
