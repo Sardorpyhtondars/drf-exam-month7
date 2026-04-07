@@ -85,7 +85,11 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     Fields: email
     - Must verify email exists in the system
     """
-    pass
+    email = serializers.EmailField()
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("No account found with this email.")
+        return value
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     """
@@ -94,4 +98,24 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     - Validate token is valid
     - Validate new_password == confirm_password
     """
-    pass
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data
+
+    def save(self):
+        from django.utils.http import urlsafe_base64_decode
+        token = self.validated_data['token']
+        try:
+            uid = urlsafe_base64_decode(token).decode()
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError):
+            raise serializers.ValidationError("Invalid or expired token.")
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+
+        # I couldn't do it myself
